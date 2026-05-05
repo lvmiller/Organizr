@@ -96,6 +96,13 @@ trait WeatherHomepageItem
 		};
 	}
 
+	private function removeWeatherAndAirLocationMetadata(&$apiData)
+	{
+		if (is_array($apiData) && isset($apiData['metadata']) && is_array($apiData['metadata'])) {
+			unset($apiData['metadata']['location']);
+		}
+	}
+
 	public function getWeatherAndAirData()
 	{
 		if (!$this->homepageItemPermissions($this->weatherHomepagePermissions('main'), true)) {
@@ -115,6 +122,7 @@ trait WeatherHomepageItem
 				$response = Requests::get($apiURL . $endpoint . $info, [], $options);
 				if ($response->success) {
 					$apiData = json_decode($response->body, true);
+					$this->removeWeatherAndAirLocationMetadata($apiData);
 					$api['content']['weather'] = ($apiData['error'] === null) ? $apiData : false;
 					unset($apiData);
 				}
@@ -124,6 +132,7 @@ trait WeatherHomepageItem
 				$response = Requests::get($apiURL . $endpoint . $info);
 				if ($response->success) {
 					$apiData = json_decode($response->body, true);
+					$this->removeWeatherAndAirLocationMetadata($apiData);
 					$api['content']['air'] = ($apiData['error'] === null) ? $apiData : false;
 					unset($apiData);
 				}
@@ -133,6 +142,7 @@ trait WeatherHomepageItem
 				$response = Requests::get($apiURL . $endpoint . $info);
 				if ($response->success) {
 					$apiData = json_decode($response->body, true);
+					$this->removeWeatherAndAirLocationMetadata($apiData);
 					$api['content']['pollen'] = ($apiData['error'] === null) ? $apiData : false;
 					unset($apiData);
 				}

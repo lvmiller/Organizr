@@ -3929,11 +3929,14 @@ class Organizr
 					}
 				}
 				// 2FA might go here
-				if ($result['auth_service'] !== 'internal' && strpos($result['auth_service'], '::') !== false) {
-					$tfaProceed = true;
+				if (isset($result['auth_service']) && strpos($result['auth_service'], '::') !== false) {
+					$TFA = explode('::', $result['auth_service'], 2);
+					$tfaProvider = $TFA[0] ?? '';
+					$supportedTFAProviders = ['google'];
+					$tfaProceed = in_array($tfaProvider, $supportedTFAProviders, true);
 					// Add check for local or not
 					if ($this->config['ignoreTFALocal'] !== false) {
-						$tfaProceed = !$this->isLocal();
+						$tfaProceed = $tfaProceed && !$this->isLocal();
 					}
 					// Is Plex Oauth?
 					if ($this->config['ignoreTFAIfPlexOAuth'] !== false) {
@@ -3951,14 +3954,13 @@ class Organizr
 					if ($tfaProceed) {
 						$this->setLoggerChannel('Authentication', $username);
 						$this->logger->debug('Starting 2FA verification');
-						$TFA = explode('::', $result['auth_service']);
 						// Is code with login info?
 						if ($tfaCode == '') {
 							$this->logger->debug('Sending 2FA response to login UI');
 							$this->setAPIResponse('warning', '2FA Code Needed', 422);
 							return false;
 						} else {
-							if (!$this->verify2FA($TFA[1], $tfaCode, $TFA[0])) {
+							if (!$this->verify2FA($TFA[1] ?? '', $tfaCode, $tfaProvider)) {
 								$this->logger->warning('Incorrect 2FA');
 								$this->setAPIResponse('error', 'Wrong 2FA', 422);
 								return false;

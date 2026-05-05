@@ -3678,6 +3678,9 @@ function twoFA(action, type, secret = null) {
   }
 }
 function buildTwoFA(current) {
+  if (current !== "google") {
+    current = "internal";
+  }
   switch (current) {
     case "internal":
       var option = `
@@ -14589,22 +14592,18 @@ function PopupCenter(url, title, w, h) {
     : screen.height;
   var left = width / 2 - w / 2 + dualScreenLeft;
   var top = height / 2 - h / 2 + dualScreenTop;
-  var newWindow = window.open(
-    url,
-    title,
-    "scrollbars=yes, width=" +
-      w +
-      ", height=" +
-      h +
-      ", top=" +
-      top +
-      ", left=" +
-      left
-  );
-  // Puts focus on the newWindow
-  if (window.focus) {
-    newWindow.focus();
-  }
+  var newWindow = null;
+  try {
+    newWindow = window.open(
+      url,
+      title,
+      "scrollbars=yes,width=" + w + ",height=" + h + ",top=" + top + ",left=" + left
+    );
+    // Puts focus on the newWindow
+    if (newWindow && window.focus) {
+      newWindow.focus();
+    }
+  } catch (e) {}
   return newWindow;
 }
 function getPlexHeaders() {
@@ -14669,6 +14668,26 @@ const plex_oauth_loader =
   "Redirecting to the login page..." +
   "</div>" +
   "</div>";
+function loadOAuthPopup(oauth_window) {
+  if (!oauth_window) {
+    return false;
+  }
+  try {
+    if (oauth_window.document && oauth_window.document.body) {
+      $(oauth_window.document.body).html(plex_oauth_loader);
+      return true;
+    }
+    setTimeout(function () {
+      try {
+        if (oauth_window.document && oauth_window.document.body) {
+          $(oauth_window.document.body).html(plex_oauth_loader);
+        }
+      } catch (e) {}
+    }, 0);
+  } catch (e) {}
+  return false;
+}
+
 function closePlexOAuthWindow() {
   if (plex_oauth_window) {
     plex_oauth_window.close();
@@ -14704,8 +14723,14 @@ function PlexOAuth(
     preFunction();
   }
   closePlexOAuthWindow();
-  plex_oauth_window = PopupCenter("", "Plex-OAuth", 600, 700);
-  $(plex_oauth_window.document.body).html(plex_oauth_loader);
+  plex_oauth_window = PopupCenter("about:blank", "Plex-OAuth", 600, 700);
+  loadOAuthPopup(plex_oauth_window);
+  if (!plex_oauth_window) {
+    if (typeof errorCallback === "function") {
+      errorCallback();
+    }
+    return;
+  }
   getPlexOAuthPin().then(
     function (data) {
       var x_plex_headers = getPlexHeaders();
@@ -14726,8 +14751,10 @@ function PlexOAuth(
         "context[device][layout]": "desktop",
         code: code,
       };
-      plex_oauth_window.location =
-        "https://app.plex.tv/auth/#!?" + encodeData(oauth_params);
+      if (plex_oauth_window) {
+        plex_oauth_window.location =
+          "https://app.plex.tv/auth/#!?" + encodeData(oauth_params);
+      }
       polling = pin;
       let maxPollCount = 120;
       (function poll() {
@@ -14775,9 +14802,11 @@ function PlexOAuth(
 function openOAuth(provider) {
   // will actually fix this later
   closePlexOAuthWindow();
-  plex_oauth_window = PopupCenter("", "OAuth", 600, 700);
-  $(plex_oauth_window.document.body).html(plex_oauth_loader);
-  plex_oauth_window.location = "api/v2/oauth/trakt";
+  plex_oauth_window = PopupCenter("about:blank", "OAuth", 600, 700);
+  loadOAuthPopup(plex_oauth_window);
+  if (plex_oauth_window) {
+    plex_oauth_window.location = "api/v2/oauth/trakt";
+  }
 }
 function encodeData(data) {
   return Object.keys(data)

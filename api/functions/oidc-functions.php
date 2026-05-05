@@ -362,13 +362,15 @@ trait OIDCFunctions
 		// Check if user exists by username
 		$existingUser = $this->getUserByUsername($username);
 		if ($existingUser) {
-			// Update auth_service and optionally group
-			$updates = ['auth_service' => 'oidc::' . $provider];
+			// OIDC is an authentication source, not a 2FA provider; do not overwrite auth_service.
+			$updates = [];
 			if ($this->config['oidcUpdateGroupsOnLogin']) {
 				$updates['group_id'] = $groupId;
 				$updates['group'] = $groupName;
 			}
-			$this->updateUserById($existingUser['id'], $updates);
+			if (!empty($updates)) {
+				$this->updateUserById($existingUser['id'], $updates);
+			}
 			$this->setLoggerChannel('OIDC')->info('Linked existing user: ' . $username);
 			return $existingUser;
 		}
@@ -376,12 +378,14 @@ trait OIDCFunctions
 		if (!empty($email) && $this->config['oidcLinkExistingUsers']) {
 			$existingUser = $this->getUserByEmail($email);
 			if ($existingUser) {
-				$updates = ['auth_service' => 'oidc::' . $provider];
+				$updates = [];
 				if ($this->config['oidcUpdateGroupsOnLogin']) {
 					$updates['group_id'] = $groupId;
 					$updates['group'] = $groupName;
 				}
-				$this->updateUserById($existingUser['id'], $updates);
+				if (!empty($updates)) {
+					$this->updateUserById($existingUser['id'], $updates);
+				}
 				$this->setLoggerChannel('OIDC')->info('Linked user by email: ' . $email);
 				return $existingUser;
 			}
@@ -401,7 +405,7 @@ trait OIDCFunctions
 			'group_id' => $groupId,
 			'image' => $image ?: $this->gravatar($email),
 			'register_date' => $this->currentTime,
-			'auth_service' => 'oidc::' . $provider,
+			'auth_service' => 'internal',
 		];
 		try {
 			$this->db->query('INSERT INTO [users]', $userInfo);
